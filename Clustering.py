@@ -292,9 +292,9 @@ def profile_and_name_phases(X_scaled):
     # Cụm 1 (Lãi suất ~1.2) -> Lại suất trung bình
     # Cụm 2 (Lãi suất ~0.7) -> Lại suất thấp
     phase_mapping = {
-        0: 'Tăng trưởng',
-        1: 'Suy thoái',
-        2: 'Phục hồi'
+        0: 'Giai đoạn Tăng trưởng',
+        1: 'Giai đoạn Suy thoái',
+        2: 'Giai đoạn chạm đáy'
     }
     df['economic_phase'] = df['Cluster_No'].map(phase_mapping)
 
