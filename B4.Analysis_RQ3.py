@@ -798,4 +798,4 @@ ax.grid(axis='y', alpha=0.3)
 
 plt.tight_layout()
 plt.show()
-print('✓ Toàn bộ hệ thống bảng biểu trực quan hóa báo cáo khoa học đã xuất bản thành công!')
+

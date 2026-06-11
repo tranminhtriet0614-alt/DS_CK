@@ -19,9 +19,10 @@ def check_file_exists():
 
 def histogram():
     check_file_exists()
-    df = pd.read_csv(INPUT_FILE, encoding='utf-8')
+    # Thêm encoding='utf-8-sig' để đọc dữ liệu an toàn
+    df = pd.read_csv(INPUT_FILE, encoding='utf-8-sig')
 
-    # 4 biến vĩ mô cần phân tích
+    # Giữ lại 4 biến vĩ mô cốt lõi sau khi loại bỏ nr.employed theo lập luận chống đa cộng tuyến
     features = ['euribor3m', 'cons.conf.idx', 'cons.price.idx', 'emp.var.rate']
     X = df[features]
 
@@ -58,7 +59,7 @@ def histogram():
 
 def correlation_matrix():
     check_file_exists()
-    df = pd.read_csv(INPUT_FILE, encoding='utf-8')
+    df = pd.read_csv(INPUT_FILE, encoding='utf-8-sig')
 
     features = ['euribor3m', 'cons.conf.idx', 'cons.price.idx', 'emp.var.rate']
     X = df[features]
@@ -84,7 +85,7 @@ def correlation_matrix():
             text_color = 'white' if abs(corr_matrix[i, j]) > 0.5 else 'black'
             plt.text(j, i, f'{corr_matrix[i, j]:.2f}', ha='center', va='center', color=text_color, fontsize=12, fontweight='bold')
 
-    plt.title('MA TRẬ за ТƯƠNG QUAN GIỮA CÁC BIẾN VĨ MÔ (MACRO)', fontsize=14, fontweight='bold', pad=20)
+    plt.title('MA TRẬN TƯƠNG QUAN GIỮA CÁC BIẾN VĨ MÔ (MACRO)', fontsize=14, fontweight='bold', pad=20)
     plt.tight_layout()
     plt.savefig('macro_correlation_matrix.png', dpi=300)
     print("-> Đã lưu biểu đồ ma trận tương quan vào file ảnh: 'macro_correlation_matrix.png'")
@@ -93,7 +94,7 @@ def correlation_matrix():
 
 def scale_data():
     check_file_exists()
-    df = pd.read_csv(INPUT_FILE, encoding='utf-8')
+    df = pd.read_csv(INPUT_FILE, encoding='utf-8-sig')
     features = ['euribor3m', 'cons.conf.idx', 'cons.price.idx', 'emp.var.rate']
     X = df[features]
 
@@ -114,6 +115,36 @@ def scale_data():
     return X_scaled
 
 
+def find_optimal_k_elbow(X_scaled):
+    print("\n--- BƯỚC 1.2b: ĐANG TÍNH ĐỘ LỆCH NỘI CỤM (INERTIA) CHO K TỪ 1 ĐẾN 9 ---")
+    
+    k_range = range(1, 10)
+    inertias = []
+
+    for k in k_range:
+        kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+        kmeans.fit(X_scaled)
+        inertias.append(kmeans.inertia_)
+        print(f"Số cụm K = {k} | Inertia (WCSS) = {kmeans.inertia_:.4f}")
+
+    plt.figure(figsize=(9, 5))
+    plt.plot(k_range, inertias, marker='o', linewidth=2, color='#2c3e50', markerfacecolor='#e67e22', markersize=8)
+    
+    plt.axvline(x=3, color='r', linestyle='--', label='Điểm cùi chỏ tối ưu (K = 3)')
+    
+    plt.title('PHÂN TÍCH ĐƯỜNG CONG CÙI CHỎ (ELBOW METHOD) ĐỂ CHỌN K TỐI ƯU', fontsize=12, fontweight='bold', pad=15)
+    plt.xlabel('Số lượng cụm (K)')
+    plt.ylabel('Giá trị Inertia (Within-Cluster Sum of Squares)')
+    plt.xticks(k_range)
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.legend()
+    plt.tight_layout()
+    
+    plt.savefig('elbow_analysis.png', dpi=300)
+    print("-> Đã lưu biểu đồ phân tích Elbow vào file 'elbow_analysis.png'")
+    plt.show()
+
+
 def find_optimal_k_silhouette(X_scaled):
     print("\n--- BƯỚC 1.3: ĐANG TÍNH SILHOUETTE SCORE CHO K TỪ 2 ĐẾN 8 ---")
     
@@ -124,8 +155,8 @@ def find_optimal_k_silhouette(X_scaled):
         kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
         labels = kmeans.fit_predict(X_scaled)
         
-        # Lấy mẫu 10000 dòng ngẫu nhiên để tối ưu tốc độ tính toán
-        score = silhouette_score(X_scaled, labels, sample_size=10000, random_state=42)
+        # Đã hạ từ 10000 xuống 3000 để giải quyết triệt để lỗi tràn bộ nhớ RAM (ArrayMemoryError)
+        score = silhouette_score(X_scaled, labels, sample_size=3000, random_state=42)
         silhouette_scores.append(score)
         print(f"Số cụm K = {k} | Silhouette Score = {score:.4f}")
 
@@ -145,19 +176,19 @@ def find_optimal_k_silhouette(X_scaled):
     plt.tight_layout()
     
     plt.savefig('silhouette_analysis.png', dpi=300)
-    plt.close()
     print("-> Đã lưu biểu đồ phân tích Silhouette vào file 'silhouette_analysis.png'")
+    plt.show()
     
     return optimal_k
 
 
 def run_kmeans_final(X_scaled):
     print("\n==================================================")
-    print("      BƯỚC 1.4: CHẠY THUẬT TOÁN K-MEANS CHÍNH THỨC     ")
+    print("     BƯỚC 1.4: CHẠY THUẬT TOÁN K-MEANS CHÍNH THỨC     ")
     print("==================================================")
     
     check_file_exists()
-    df = pd.read_csv(INPUT_FILE, encoding='utf-8')
+    df = pd.read_csv(INPUT_FILE, encoding='utf-8-sig')
     features = ['euribor3m', 'cons.conf.idx', 'cons.price.idx', 'emp.var.rate']
 
     kmeans_model = KMeans(n_clusters=3, random_state=42, n_init=10)
@@ -177,7 +208,8 @@ def run_kmeans_final(X_scaled):
     mean_table = df.groupby('KMeans_Cluster')[features].mean()
     print(mean_table.round(4))
     
-    df.to_csv(OUTPUT_FILE, index=False)
+    # Thay đổi thành encoding='utf-8-sig' để khi mở bằng Excel không bị lỗi font
+    df.to_csv(OUTPUT_FILE, index=False, encoding='utf-8-sig')
     print(f"\n====== HOÀN TẤT! ĐÃ LƯU KẾT QUẢ PHÂN CỤM VÀO FILE '{OUTPUT_FILE}' ======")
     
     return df
@@ -185,7 +217,7 @@ def run_kmeans_final(X_scaled):
 
 def AH_Clustering():
     check_file_exists()
-    df = pd.read_csv(INPUT_FILE, encoding='utf-8')
+    df = pd.read_csv(INPUT_FILE, encoding='utf-8-sig')
     features = ['euribor3m', 'cons.conf.idx', 'cons.price.idx', 'emp.var.rate']
 
     sample_size = min(5500, len(df))
@@ -234,22 +266,21 @@ def profile_and_name_phases(X_scaled):
     print("==================================================")
     
     check_file_exists()
-    df = pd.read_csv(INPUT_FILE, encoding='utf-8')
+    df = pd.read_csv(INPUT_FILE, encoding='utf-8-sig')
     features = ['euribor3m', 'cons.conf.idx', 'cons.price.idx', 'emp.var.rate']
 
     kmeans_model = KMeans(n_clusters=3, random_state=42, n_init=10)
     cluster_labels = kmeans_model.fit_predict(X_scaled)
     df['Cluster_No'] = cluster_labels
 
-    # 1. TẠO CỘT CHỮ: Ánh xạ nhãn văn bản thân thiện phục vụ viết báo cáo lý thuyết
+    # Đã đồng bộ chữ "Chạm đáy" viết hoa
     phase_name_mapping = {
         0: 'Giai đoạn Tăng trưởng',
         1: 'Giai đoạn Suy thoái',
-        2: 'Giai đoạn chạm đáy'
+        2: 'Giai đoạn Chạm đáy'
     }
     df['phase_name'] = df['Cluster_No'].map(phase_name_mapping)
 
-    # 2. TẠO CỘT SỐ: Ánh xạ mã định danh số (1, 2, 3) phục vụ chia nhánh Mô hình cây định lượng
     phase_num_mapping = {
         0: 1,
         1: 2,
@@ -257,13 +288,11 @@ def profile_and_name_phases(X_scaled):
     }
     df['economic_phase'] = df['Cluster_No'].map(phase_num_mapping)
 
-    # 3. TRÍCH XUẤT TÂM CỤM DẠNG Z-SCORE CHO BIỂU ĐỒ HEATMAP
     cluster_centers_z = kmeans_model.cluster_centers_
     z_score_table = pd.DataFrame(cluster_centers_z, columns=features)
     
-    # Đồng bộ hóa Index theo tên chu kỳ để Reindex không bị sinh ra giá trị rỗng (NaN)
     z_score_table.index = [phase_name_mapping[i] for i in z_score_table.index]
-    order_phases = ['Giai đoạn Tăng trưởng', 'Giai đoạn Suy thoái', 'Giai đoạn chạm đáy']
+    order_phases = ['Giai đoạn Tăng trưởng', 'Giai đoạn Suy thoái', 'Giai đoạn Chạm đáy']
     z_score_table = z_score_table.reindex(order_phases)
 
     print("\n[BẢNG 1] MA TRẬN TÂM CỤM ĐÃ CHUẨN HÓA (Z-SCORE) - DÙNG CHO HEATMAP:")
@@ -282,8 +311,9 @@ def profile_and_name_phases(X_scaled):
     
     plt.savefig('cluster_profile_heatmap.png', dpi=300)
     print("-> [XONG] Đã xuất biểu đồ Heatmap Z-score vào file: 'cluster_profile_heatmap.png'")
+    plt.show()
 
-    print("\n[BẢNG 2] PROFILE CÁC BIẾN VĨ MÔ THEO ĐƠN VỊ GỐC (DỄ DIỄN GIẢI):")
+    print("\n[BẢNG 2] PROFILE CÁC BIẾN VĨ MÔ THEO ĐƠN VỊ GỐC:")
     print("====================================================================")
     profile_table = df.groupby('phase_name')[features].mean()
     profile_table = profile_table.reindex(order_phases)
@@ -293,9 +323,10 @@ def profile_and_name_phases(X_scaled):
     print("\nSố lượng dòng quan sát rơi vào từng giai đoạn kinh tế (Theo mã số định lượng):")
     print(df['economic_phase'].value_counts().sort_index())
 
-    # Đồng bộ hóa cấu trúc: Xóa bỏ cột mã hóa cụm tạm thời để giữ sạch tệp kết quả phẳng
     df = df.drop(columns=['Cluster_No'])
-    df.to_csv(OUTPUT_FILE, index=False)
+    
+    # Thay đổi thành encoding='utf-8-sig' để lưu file CSV đích không bao giờ lỗi tiếng Việt nữa
+    df.to_csv(OUTPUT_FILE, index=False, encoding='utf-8-sig')
     print(f"\n====== [HOÀN TẤT BƯỚC 1.6] ĐÃ TÍCH HỢP ĐỒNG THỜI 'phase_name' VÀ 'economic_phase' VÀO FILE TRUNG TÂM '{OUTPUT_FILE}' ======")
     
     return df
@@ -306,23 +337,14 @@ def main():
     print("   CHẠY LUỒNG PHÂN TÍCH CHÍNH THỨC (QUY TRÌNH MỚI) ")
     print("==================================================")
 
-    # Khóa các bước EDA cũ (Bỏ comment nếu nhóm muốn xuất lại ảnh biểu đồ)
-    # histogram()
-    # correlation_matrix()
+    histogram()
+    correlation_matrix()
     
-    # 1. BẮT BUỘC GIỮ: Chuẩn hóa dữ liệu gốc để tạo mảng dữ liệu X_scaled
     X_scaled = scale_data()
-    
-    # 2. Khóa bước tìm K của Silhouette (Bỏ comment nếu muốn chạy lại phân tích K)
-    # find_optimal_k_silhouette(X_scaled)
-    
-    # 3. Khóa bước chạy KMeans cơ bản (Bỏ comment nếu muốn xuất file nhãn KMeans_Cluster số)
-    # run_kmeans_final(X_scaled)
-    
-    # 4. Khóa bước chạy phân tầng đối chiếu (Bỏ comment nếu muốn vẽ lại Dendrogram mẫu)
-    # AH_Clustering()
-
-    # 5. CHẠY CHÍNH THỨC: Trích xuất hồ sơ tâm cụm vĩ mô và xuất Dataset đồng bộ cuối cùng
+    find_optimal_k_elbow(X_scaled)
+    find_optimal_k_silhouette(X_scaled)
+    run_kmeans_final(X_scaled)
+    AH_Clustering()
     df_final = profile_and_name_phases(X_scaled)
 
 if __name__ == "__main__":
